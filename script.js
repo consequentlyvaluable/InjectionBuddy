@@ -63,6 +63,114 @@ const allZones = {
   ],
 };
 
+const bodyHotspots = [
+  {
+    site: "Right Arm",
+    top: "18%",
+    left: "30%",
+    width: "10%",
+    height: "11%",
+  },
+  {
+    site: "Left Arm",
+    top: "18%",
+    left: "59%",
+    width: "10%",
+    height: "11%",
+  },
+  {
+    site: "Stomach",
+    top: "32%",
+    left: "40%",
+    width: "20%",
+    height: "8%",
+  },
+  {
+    site: "Right Thigh - Upper Outer",
+    top: "45%",
+    left: "36%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Right Thigh - Middle Outer",
+    top: "50%",
+    left: "36%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Right Thigh - Lower Outer",
+    top: "55%",
+    left: "36%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Right Thigh - Upper Inner",
+    top: "45%",
+    left: "43%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Right Thigh - Middle Inner",
+    top: "50%",
+    left: "43%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Right Thigh - Lower Inner",
+    top: "55%",
+    left: "43%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Upper Outer",
+    top: "45%",
+    left: "57%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Middle Outer",
+    top: "50%",
+    left: "57%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Lower Outer",
+    top: "55%",
+    left: "57%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Upper Inner",
+    top: "45%",
+    left: "50%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Middle Inner",
+    top: "50%",
+    left: "50%",
+    width: "7%",
+    height: "6%",
+  },
+  {
+    site: "Left Thigh - Lower Inner",
+    top: "55%",
+    left: "50%",
+    width: "7%",
+    height: "6%",
+  },
+];
+
 const AmbigUI = (() => {
   const root = document.getElementById("ambig-modal");
   const labelEl = document.getElementById("ambig-label");
@@ -87,7 +195,7 @@ const AmbigUI = (() => {
       close();
       // after finishing all, repaint
       ["skyrizi", "repatha"].forEach(renderHistory);
-      ["skyrizi", "repatha"].forEach(renderBodymap);
+      renderBodymap();
       renderZoneOptions("skyrizi");
       renderZoneOptions("repatha");
       save();
@@ -346,6 +454,7 @@ function save() {
 }
 
 let selectedSite = { skyrizi: null, repatha: null };
+let activeBodymapMed = "skyrizi";
 
 // Short date for body labels: "Jan. 5", "Sep. 18"
 function formatShortDate(ts) {
@@ -371,8 +480,7 @@ function latestBySite(med) {
 
 // choose where to place the pill around the hotspot so it stays visible
 function chooseTagPosition(hotspotEl) {
-  const container =
-    hotspotEl.closest('[id^="bodymap-"]') || hotspotEl.parentElement;
+  const container = hotspotEl.closest("#bodymap") || hotspotEl.parentElement;
   const c = container.getBoundingClientRect();
   const r = hotspotEl.getBoundingClientRect();
   const topSpace = r.top - c.top;
@@ -417,8 +525,13 @@ function createZoneToggle(container, med, zone) {
     } else {
       state[med].zones = state[med].zones.filter((z) => z !== zone);
     }
+    if (!state[med].zones.includes(selectedSite[med])) {
+      selectedSite[med] = null;
+    }
     save();
-    renderBodymap(med);
+    if (activeBodymapMed === med) {
+      renderBodymap();
+    }
     renderHistory(med);
   });
 
@@ -559,8 +672,7 @@ function ensureOutlineFor(hotspotEl) {
 
 // Position and size the circular outline around a hotspot element
 function positionOutline(hotspotEl, outlineEl) {
-  const container =
-    hotspotEl.closest('[id^="bodymap-"]') || hotspotEl.parentElement;
+  const container = hotspotEl.closest("#bodymap") || hotspotEl.parentElement;
   const cRect = container.getBoundingClientRect();
   const hRect = hotspotEl.getBoundingClientRect();
 
@@ -594,79 +706,98 @@ function cleanupOutlines(container) {
 }
 const MEDS = new Set(["skyrizi", "repatha"]);
 function renderBodymap(med) {
-  if (!MEDS.has(med)) return;
+  if (med && MEDS.has(med)) {
+    activeBodymapMed = med;
+  }
 
-  const hotspots = document.querySelectorAll(`#bodymap-${med} .site-hotspot`);
-  const enabled = state[med].zones || [];
-  const { usedSet } = computeUsedZones(med);
-  const latest = latestBySite(med);
+  const container = document.getElementById("bodymap");
+  if (!container) return;
 
-  hotspots.forEach((h) => {
-    const site = h.dataset.site;
-    const visible = enabled.includes(site);
+  const currentMed = MEDS.has(activeBodymapMed) ? activeBodymapMed : "skyrizi";
+  container.setAttribute("data-med", currentMed);
 
-    // base visibility + clear previous state
-    h.style.display = visible ? "block" : "none";
-    if (visible) {
-      // existing code...
-      // create/position outline
-      const outline = ensureOutlineFor(h);
-      positionOutline(h, outline);
-      outline.classList.add("visible");
-      // add a subtle accent when the hotspot is hovered or selected
-      h.addEventListener("mouseenter", () => outline.classList.add("accent"));
-      h.addEventListener("mouseleave", () =>
-        outline.classList.remove("accent")
-      );
-      h.addEventListener("click", () => {
-        // briefly accent so selection feels tactile
-        outline.classList.add("accent");
-        setTimeout(() => outline.classList.remove("accent"), 400);
-      });
-    } else {
-      // if hidden, remove any outline for cleanliness
-      const outlineEl = h.parentElement.querySelector(
-        '.site-outline[data-for="' + h.dataset.site + '"]'
-      );
-      if (outlineEl) outlineEl.remove();
+  const select = document.getElementById("bodymap-med");
+  if (select && select.value !== currentMed) {
+    select.value = currentMed;
+  }
+
+  // clear previous interactive elements but keep the base image intact
+  container
+    .querySelectorAll(
+      ".site-hotspot, .site-outline, .site-tag, .site-callout, .site-dot"
+    )
+    .forEach((el) => el.remove());
+
+  const enabled = state[currentMed].zones || [];
+  const { usedSet } = computeUsedZones(currentMed);
+  const latest = latestBySite(currentMed);
+  let selected = selectedSite[currentMed];
+  if (selected && !enabled.includes(selected)) {
+    selectedSite[currentMed] = null;
+    selected = null;
+  }
+
+  bodyHotspots.forEach((cfg) => {
+    const hotspot = document.createElement("div");
+    hotspot.className = "site-hotspot";
+    hotspot.dataset.med = currentMed;
+    hotspot.dataset.site = cfg.site;
+    hotspot.title = cfg.site;
+    hotspot.style.top = cfg.top;
+    hotspot.style.left = cfg.left;
+    hotspot.style.width = cfg.width;
+    hotspot.style.height = cfg.height;
+
+    const visible = enabled.includes(cfg.site);
+    hotspot.style.display = visible ? "block" : "none";
+
+    container.appendChild(hotspot);
+
+    if (!visible) {
+      return;
     }
 
-    h.classList.remove("site-used");
-    h.querySelectorAll(".site-tag, .site-callout, .site-dot").forEach((el) =>
-      el.remove()
+    const outline = ensureOutlineFor(hotspot);
+    positionOutline(hotspot, outline);
+    outline.classList.add("visible");
+
+    hotspot.addEventListener("mouseenter", () => outline.classList.add("accent"));
+    hotspot.addEventListener("mouseleave", () =>
+      outline.classList.remove("accent")
     );
+    hotspot.addEventListener("click", () => {
+      outline.classList.add("accent");
+      setTimeout(() => outline.classList.remove("accent"), 400);
+    });
 
-    if (visible && usedSet.has(site)) {
-      // mark as used (red)
-      h.classList.add("site-used");
-      h.title = `${site} — used this rotation`;
+    if (selected === cfg.site) {
+      hotspot.classList.add("site-selected");
+    }
 
-      // add small center dot (optional; remove if you don't want it)
+    if (usedSet.has(cfg.site)) {
+      hotspot.classList.add("site-used");
+      hotspot.title = `${cfg.site} — used this rotation`;
+
       const dot = document.createElement("div");
       dot.className = "site-dot";
-      h.appendChild(dot);
+      hotspot.appendChild(dot);
 
-      // add the external date pill
-      const ts = latest.get(site);
+      const ts = latest.get(cfg.site);
       const tag = document.createElement("div");
       tag.className = "site-tag";
       tag.textContent = formatShortDate(ts);
-
-      // attach inside hotspot (absolute) and decide where to anchor it
-      const pos = chooseTagPosition(h);
+      const pos = chooseTagPosition(hotspot);
       tag.setAttribute("data-pos", pos);
-      h.appendChild(tag);
-    } else if (visible) {
-      h.title = site;
+      hotspot.appendChild(tag);
     }
-    const container = document.getElementById("bodymap-" + med);
-    if (container) cleanupOutlines(container);
   });
+
+  cleanupOutlines(container);
 }
 
 // keep labels well placed on resize
 window.addEventListener("resize", () => {
-  ["skyrizi", "repatha"].forEach(renderBodymap);
+  renderBodymap();
 });
 
 function formatFullDate(ts) {
@@ -771,7 +902,9 @@ function importHistoryCSV(med, file) {
     state[med].history.sort((a, b) => a.ts - b.ts);
     save();
     renderHistory(med);
-    renderBodymap(med);
+    if (activeBodymapMed === med) {
+      renderBodymap();
+    }
     renderZoneOptions(med);
 
     // NEW: prompt user to resolve ambiguous sites from the imported file
@@ -786,9 +919,12 @@ document.body.addEventListener("click", (e) => {
   const hotspot = e.target.closest(".site-hotspot");
   if (hotspot) {
     const med = hotspot.dataset.med;
-    document
-      .querySelectorAll(`#bodymap-${med} .site-hotspot`)
-      .forEach((h) => h.classList.remove("site-selected"));
+    const mapContainer = document.getElementById("bodymap");
+    if (mapContainer && mapContainer.dataset.med === med) {
+      mapContainer
+        .querySelectorAll(".site-hotspot")
+        .forEach((h) => h.classList.remove("site-selected"));
+    }
     hotspot.classList.add("site-selected");
     selectedSite[med] = hotspot.dataset.site;
   }
@@ -822,13 +958,18 @@ document.body.addEventListener("click", (e) => {
     save();
     // after save();
     selectedSite[med] = null;
-    document
-      .querySelectorAll(`#bodymap-${med} .site-hotspot`)
-      .forEach((h) => h.classList.remove("site-selected"));
+    const mapContainer = document.getElementById("bodymap");
+    if (mapContainer && mapContainer.dataset.med === med) {
+      mapContainer
+        .querySelectorAll(".site-hotspot")
+        .forEach((h) => h.classList.remove("site-selected"));
+    }
 
     // repaint so the just-used zone turns red
     renderHistory(med);
-    renderBodymap(med);
+    if (activeBodymapMed === med) {
+      renderBodymap();
+    }
     renderZoneOptions(med);
   }
   if (btn.dataset.action === "ics") {
@@ -840,7 +981,9 @@ document.body.addEventListener("click", (e) => {
       state[med].history = [];
       save();
       renderHistory(med);
-      renderBodymap(med);
+      if (activeBodymapMed === med) {
+        renderBodymap();
+      }
       renderZoneOptions(med);
     }
   }
@@ -941,8 +1084,18 @@ function initAfterImages() {
   renderZoneOptions("skyrizi");
   renderZoneOptions("repatha");
 
-  renderBodymap("skyrizi");
-  renderBodymap("repatha");
+  renderBodymap(activeBodymapMed);
+
+  const bodymapSelect = document.getElementById("bodymap-med");
+  if (bodymapSelect) {
+    bodymapSelect.value = activeBodymapMed;
+    bodymapSelect.addEventListener("change", (event) => {
+      const med = event.target.value;
+      if (MEDS.has(med)) {
+        renderBodymap(med);
+      }
+    });
+  }
 
   document.getElementById("skyrizi-start").value = state.skyrizi.start || "";
   document.getElementById("repatha-start").value = state.repatha.start || "";
