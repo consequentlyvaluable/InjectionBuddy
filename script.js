@@ -83,14 +83,14 @@ const bodyHotspots = [
     height: "11%",
   },
   {
-    site: "Left Stomach",
+    site: "Right Stomach",
     top: "32%",
     left: "40%",
     width: "10%",
     height: "8%",
   },
   {
-    site: "Right Stomach",
+    site: "Left Stomach",
     top: "32%",
     left: "50%",
     width: "10%",
