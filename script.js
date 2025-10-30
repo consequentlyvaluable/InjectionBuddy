@@ -217,7 +217,7 @@ function legacyNormalize(raw) {
     const defaults = {
       start: null,
       interval: med === "skyrizi" ? 8 : 2,
-      dose: med === "repatha" ? "140 mg" : "",
+      dose: "",
       history: [],
       zones: [...LEGACY_ZONES[med]],
     };
