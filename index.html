@@ -188,73 +188,67 @@
         
       </p>
     </header>
-    <main class="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
-      <section class="grid md:grid-cols-2 gap-6">
-        <!-- Skyrizi Card -->
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 pb-24">
+      <section class="space-y-8">
         <article
-          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6 flex flex-col h-full hover:shadow-xl hover:-translate-y-1 transition"
+          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6 hover:shadow-xl hover:-translate-y-1 transition"
         >
-          <!-- Header -->
-          <header
-            class="flex items-center justify-between border-b-2 border-green-500 pb-3"
-          >
-            <h2 class="text-xl font-semibold text-slate-800">Injection 1</h2>
-            <span class="text-xs px-2 py-1 rounded-full bg-black text-white"
-              ></span
-            >
+          <header class="flex items-center justify-between pb-3 border-b">
+            <div>
+              <h2 class="text-xl font-semibold text-slate-800">
+                My Injection Tracker
+              </h2>
+              <p class="text-sm text-slate-500">
+                Track every injection with one shared history and body map.
+              </p>
+            </div>
           </header>
 
-          <div class="mt-4">
-            <h3 class="font-medium">My Injection Zones</h3>
-            <div
-              id="zone-options-skyrizi"
-              class="grid grid-cols-2 gap-2 text-sm"
-            ></div>
-          </div>
-
-          <div class="mt-4 grid gap-3">
-            <label class="text-sm"
-              >Start date -
-              <input type="date" class="input mt-1" id="skyrizi-start" />
-            </label>
-            <p class="text-xs text-slate-500">
-              Use the shared body map below to pick your injection site before
-              logging.
-            </p>
-            <div class="flex flex-col gap-3 mt-3">
-              <button
-                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-green-600 text-white hover:bg-green-700"
-                data-med="skyrizi"
-                data-action="logNow"
-              >
-                💉 Log Injection Now
-              </button>
-              <button
-                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
-                data-med="skyrizi"
-                data-action="ics"
-              >
-                📅 Add to Calendar (.ics)
-              </button>
+          <div class="mt-4 space-y-5">
+            <div>
+              <h3 class="font-medium">Injection Zones</h3>
+              <div id="zone-options" class="grid grid-cols-2 gap-2 text-sm"></div>
             </div>
-            <div class="mt-3">
+
+            <div class="grid gap-3">
+              <label class="text-sm"
+                >Start date -
+                <input type="date" class="input mt-1" id="start-date" />
+              </label>
+              <p class="text-xs text-slate-500">
+                Use the body map to pick your injection site before logging.
+              </p>
+              <div class="flex flex-col gap-3 mt-3">
+                <button
+                  class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-green-600 text-white hover:bg-green-700"
+                  data-action="logNow"
+                >
+                  💉 Log Injection Now
+                </button>
+                <button
+                  class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
+                  data-action="ics"
+                >
+                  📅 Add to Calendar (.ics)
+                </button>
+              </div>
+            </div>
+
+            <div>
               <h3 class="font-medium">History</h3>
               <ul
-                id="skyrizi-history"
+                id="history"
                 class="mt-3 space-y-4 relative border-l border-slate-200 pl-4 text-sm list-none"
               ></ul>
-              <!-- Skyrizi History Actions -->
-              <div class="flex gap-2 mt-3">
-                <!-- Export History -->
+
+              <div class="flex flex-wrap gap-2 mt-3">
                 <button
                   class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-blue-600 hover:to-blue-700 hover:shadow-md active:scale-95"
-                  data-med="skyrizi"
                   data-action="exportHistory"
                 >
                   ⬇️ Export
                 </button>
 
-                <!-- Restore History -->
                 <label
                   class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-green-600 hover:to-green-700 hover:shadow-md active:scale-95 cursor-pointer"
                 >
@@ -262,16 +256,13 @@
                   <input
                     type="file"
                     accept=".csv"
-                    data-med="skyrizi"
                     data-action="importHistory"
                     class="hidden"
                   />
                 </label>
 
-                <!-- Clear History -->
                 <button
                   class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-red-600 hover:to-red-700 hover:shadow-md active:scale-95"
-                  data-med="skyrizi"
                   data-action="clearHistory"
                 >
                   🗑️ Clear
@@ -280,133 +271,26 @@
             </div>
           </div>
         </article>
-        <!-- Repatha Card -->
-        <article
-          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6 flex flex-col h-full hover:shadow-xl hover:-translate-y-1 transition"
-        >
-          <!-- Header -->
-          <header
-            class="flex items-center justify-between border-b-2 border-indigo-500 pb-3"
-          >
-            <h2 class="text-xl font-semibold text-slate-800">Injection 2</h2>
-            <span class="text-xs px-2 py-1 rounded-full bg-black text-white"
-              ></span
-            >
-          </header>
 
-          <div class="mt-4">
-            <h3 class="font-medium">My Injection Zones</h3>
-            <div
-              id="zone-options-repatha"
-              class="grid grid-cols-2 gap-2 text-sm"
-            ></div>
-          </div>
-
-          <div class="mt-4 grid gap-3">
-            <label class="text-sm"
-              >Start date -
-              <input type="date" class="input mt-1" id="repatha-start" />
-            </label>
-            <p class="text-xs text-slate-500">
-              Use the shared body map below to pick your injection site before
-              logging.
-            </p>
-            <div class="flex flex-col gap-3 mt-3">
-              <button
-                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-green-600 text-white hover:bg-green-700"
-                data-med="repatha"
-                data-action="logNow"
-              >
-                💉 Log Injection Now
-              </button>
-              <button
-                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
-                data-med="repatha"
-                data-action="ics"
-              >
-                📅 Add to Calendar (.ics)
-              </button>
-            </div>
-            <div class="mt-3">
-              <h3 class="font-medium">History</h3>
-              <ul
-                id="repatha-history"
-                class="mt-3 space-y-4 relative border-l border-slate-200 pl-4 text-sm list-none"
-              ></ul>
-              <!-- Repatha History Actions -->
-              <div class="flex gap-2 mt-3">
-                <!-- Export History -->
-                <button
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-blue-600 hover:to-blue-700 hover:shadow-md active:scale-95"
-                  data-med="repatha"
-                  data-action="exportHistory"
-                >
-                  ⬇️ Export
-                </button>
-
-                <!-- Restore History -->
-                <label
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-green-600 hover:to-green-700 hover:shadow-md active:scale-95 cursor-pointer"
-                >
-                  📂 Restore
-                  <input
-                    type="file"
-                    accept=".csv"
-                    data-med="repatha"
-                    data-action="importHistory"
-                    class="hidden"
-                  />
-                </label>
-
-                <!-- Clear History -->
-                <button
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-red-600 hover:to-red-700 hover:shadow-md active:scale-95"
-                  data-med="repatha"
-                  data-action="clearHistory"
-                >
-                  🗑️ Clear
-                </button>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
-
-
-      <!-- Shared Body Map -->
-      <section class="mt-10">
-        <div
-          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6"
-        >
+        <section>
           <div
-            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+            class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6"
           >
             <h2 class="text-xl font-semibold text-slate-800">Body Map</h2>
-            <label class="inline-flex items-center gap-2 text-sm text-slate-600"
-              >Show zones for
-              <select
-                id="bodymap-med"
-                class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="skyrizi">Injection 1</option>
-                <option value="repatha">Injection 2</option>
-              </select>
-            </label>
-          </div>
 
-          <div
-            class="mt-4 relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto"
-            id="bodymap"
-            data-med="skyrizi"
-          >
-            <img src="body.jpg" alt="Body Map" class="w-full h-auto" />
-          </div>
+            <div
+              class="mt-4 relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto"
+              id="bodymap"
+            >
+              <img src="body.jpg" alt="Body Map" class="w-full h-auto" />
+            </div>
 
-          <p class="text-xs text-slate-500 mt-3 text-center sm:text-left">
-            Click the highlighted zone to select it, then use the buttons above
-            to log your injection.
-          </p>
-        </div>
+            <p class="text-xs text-slate-500 mt-3 text-center sm:text-left">
+              Click the highlighted zone to select it, then use the buttons
+              above to log your injection.
+            </p>
+          </div>
+        </section>
       </section>
     </main>
     <!-- Ambiguity Resolver Modal -->
