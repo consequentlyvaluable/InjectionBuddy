@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>💉 Skyrizi & Repatha Tracker</title>
+    <link rel="icon" type="image/png" href="body.jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="script.js?v=2025.09.16" defer></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(console.error);
+      }
+    </script>
+
+    <style>
+      /* Circular guide outline shown around (or near) a hotspot.
+      Pointer-events none so it never blocks clicks. */
+      .site-outline {
+        position: absolute;
+        z-index: 1; /* behind .site-dot (z-index:2) and tags (z-index:3) */
+        pointer-events: none;
+        border-radius: 50%;
+        border: 2px dashed rgba(163, 4, 93, 0.35); /* subtle dashed blue */
+        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.06),
+          inset 0 0 10px rgba(59, 130, 246, 0.02);
+        transform: translate(-50%, -50%) scale(1);
+        transition: all 200ms ease;
+        opacity: 0;
+      }
+
+      /* visible state */
+      .site-outline.visible {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      /* hint / hover accent */
+      .site-outline.accent {
+        border-style: solid;
+        border-width: 2px;
+        border-color: rgba(37, 99, 235, 0.5);
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.12);
+        transform: translate(-50%, -50%) scale(1.06);
+      }
+
+      /* pill-style date tag that sits just outside a hotspot */
+      .site-tag {
+        position: absolute;
+        z-index: 3;
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        color: #7a1140; /* plum-ish text */
+        background: #fff;
+        border: 2px solid #f4b6ce; /* soft pink border */
+        border-radius: 999px;
+        white-space: nowrap;
+        pointer-events: none; /* never blocks clicks */
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      /* small triangular pointer; direction via [data-pos] */
+      .site-tag::after {
+        content: "";
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-style: solid;
+      }
+
+      /* positions */
+      .site-tag[data-pos="top"] {
+        left: 50%;
+        top: 0;
+        transform: translate(-50%, -8px);
+      }
+      .site-tag[data-pos="bottom"] {
+        left: 50%;
+        top: 100%;
+        transform: translate(-50%, 8px);
+      }
+      .site-tag[data-pos="left"] {
+        left: 0;
+        top: 50%;
+        transform: translate(-8px, -50%);
+      }
+      .site-tag[data-pos="right"] {
+        left: 100%;
+        top: 50%;
+        transform: translate(8px, -50%);
+      }
+
+      /* pointer orientations */
+      .site-tag[data-pos="top"]::after {
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 6px 6px 0 6px;
+        border-color: #f4b6ce transparent transparent transparent;
+      }
+      .site-tag[data-pos="bottom"]::after {
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 6px 6px 6px;
+        border-color: transparent transparent #f4b6ce transparent;
+      }
+      .site-tag[data-pos="left"]::after {
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-width: 6px 0 6px 6px;
+        border-color: transparent transparent transparent #f4b6ce;
+      }
+      .site-tag[data-pos="right"]::after {
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-width: 6px 6px 6px 0;
+        border-color: transparent #f4b6ce transparent transparent;
+      }
+
+      /* optional: a small dot in the center of the used hotspot */
+      .site-dot {
+        position: absolute;
+        z-index: 2;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #e11d48; /* rose-600 */
+        opacity: 0.8;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      .site-hotspot {
+        position: absolute;
+        cursor: pointer;
+        background-color: rgba(59, 130, 246, 0);
+        border: 2px solid transparent;
+        border-radius: 6px;
+        transition: all 0.15s ease-in-out;
+      }
+      .site-used {
+        background-color: rgba(239, 68, 68, 0.22) !important; /* red-500/20 */
+        border-color: rgba(220, 38, 38, 0.95) !important; /* red-600 */
+        box-shadow: 0 0 6px rgba(220, 38, 38, 0.45);
+      }
+      .site-hotspot:hover {
+        background-color: rgba(59, 130, 246, 0.15);
+        border-color: rgba(59, 130, 246, 0.6);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .animate-fadeIn {
+        animation: fadeIn 0.25s ease-out;
+      }
+
+      .site-selected {
+        background-color: rgba(59, 130, 246, 0.25) !important;
+        border-color: rgba(37, 99, 235, 1) !important;
+        box-shadow: 0 0 6px rgba(37, 99, 235, 0.6);
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"
+  >
+    <header class="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+        💉 Skyrizi & Repatha Tracker
+      </h1>
+      <p class="mt-2 text-sm text-slate-600">
+        Skyrizi (GI every 8 weeks) & Repatha (140 mg every 2 weeks)
+      </p>
+    </header>
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
+      <section class="grid md:grid-cols-2 gap-6">
+        <!-- Skyrizi Card -->
+        <article
+          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6 flex flex-col h-full hover:shadow-xl hover:-translate-y-1 transition"
+        >
+          <!-- Header -->
+          <header
+            class="flex items-center justify-between border-b-2 border-green-500 pb-3"
+          >
+            <h2 class="text-xl font-semibold text-slate-800">Skyrizi</h2>
+            <span class="text-xs px-2 py-1 rounded-full bg-black text-white"
+              >Every 8 weeks</span
+            >
+          </header>
+
+          <div class="mt-4">
+            <h3 class="font-medium">My Injection Zones</h3>
+            <div
+              id="zone-options-skyrizi"
+              class="grid grid-cols-2 gap-2 text-sm"
+            ></div>
+          </div>
+
+          <div class="mt-4 grid gap-3">
+            <label class="text-sm"
+              >Start date -
+              <input type="date" class="input mt-1" id="skyrizi-start" />
+            </label>
+            <!-- Body map -->
+            <div
+              class="mt-3 relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto"
+              id="bodymap-skyrizi"
+            >
+              <img src="body.jpg" alt="Body Map" class="w-full h-auto" />
+              <!-- Arms & Stomach -->
+              <!-- Right Arm -->
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Arm"
+                title="Right Arm"
+                style="top: 18%; left: 30%; width: 10%; height: 11%"
+              ></div>
+              <!-- Left Arm -->
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Arm"
+                title="Left Arm"
+                style="top: 18%; left: 59%; width: 10%; height: 11%"
+              ></div>
+              <!-- Stomach -->
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Stomach"
+                style="top: 32%; left: 40%; width: 20%; height: 8%"
+              ></div>
+              <!-- Right Thigh -->
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Upper Outer"
+                title="Right Thigh - Upper Outer"
+                style="top: 45%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Middle Outer"
+                title="Right Thigh - Middle Outer"
+                style="top: 50%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Lower Outer"
+                title="Right Thigh - Lower Outer"
+                style="top: 55%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Upper Inner"
+                title="Right Thigh - Upper Inner"
+                style="top: 45%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Middle Inner"
+                title="Right Thigh - Middle Inner"
+                style="top: 50%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Right Thigh - Lower Inner"
+                title="Right Thigh - Lower Inner"
+                style="top: 55%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <!-- Left Thigh -->
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Upper Outer"
+                title="Left Thigh - Upper Outer"
+                style="top: 45%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Middle Outer"
+                title="Left Thigh - Middle Outer"
+                style="top: 50%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Lower Outer"
+                title="Left Thigh - Lower Outer"
+                style="top: 55%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Upper Inner"
+                title="Left Thigh - Upper Inner"
+                style="top: 45%; left: 50%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Middle Inner"
+                title="Left Thigh - Middle Inner"
+                style="top: 50%; left: 50%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="skyrizi"
+                data-site="Left Thigh - Lower Inner"
+                title="Left Thigh - Lower Inner"
+                style="top: 55%; left: 50%; width: 7%; height: 6%"
+              ></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              Click the injection site before logging.
+            </p>
+            <div class="flex flex-col gap-3 mt-3">
+              <button
+                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-green-600 text-white hover:bg-green-700"
+                data-med="skyrizi"
+                data-action="logNow"
+              >
+                💉 Log Injection Now
+              </button>
+              <button
+                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
+                data-med="skyrizi"
+                data-action="ics"
+              >
+                📅 Add to Calendar (.ics)
+              </button>
+            </div>
+            <div class="mt-3">
+              <h3 class="font-medium">History</h3>
+              <ul
+                id="skyrizi-history"
+                class="mt-3 space-y-4 relative border-l border-slate-200 pl-4 text-sm list-none"
+              ></ul>
+              <!-- Skyrizi History Actions -->
+              <div class="flex gap-2 mt-3">
+                <!-- Export History -->
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-blue-600 hover:to-blue-700 hover:shadow-md active:scale-95"
+                  data-med="skyrizi"
+                  data-action="exportHistory"
+                >
+                  ⬇️ Export
+                </button>
+
+                <!-- Restore History -->
+                <label
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-green-600 hover:to-green-700 hover:shadow-md active:scale-95 cursor-pointer"
+                >
+                  📂 Restore
+                  <input
+                    type="file"
+                    accept=".csv"
+                    data-med="skyrizi"
+                    data-action="importHistory"
+                    class="hidden"
+                  />
+                </label>
+
+                <!-- Clear History -->
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-red-600 hover:to-red-700 hover:shadow-md active:scale-95"
+                  data-med="skyrizi"
+                  data-action="clearHistory"
+                >
+                  🗑️ Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+        <!-- Repatha Card -->
+        <article
+          class="rounded-2xl bg-white/80 shadow-lg ring-1 ring-black/5 backdrop-blur p-6 flex flex-col h-full hover:shadow-xl hover:-translate-y-1 transition"
+        >
+          <!-- Header -->
+          <header
+            class="flex items-center justify-between border-b-2 border-indigo-500 pb-3"
+          >
+            <h2 class="text-xl font-semibold text-slate-800">Repatha</h2>
+            <span class="text-xs px-2 py-1 rounded-full bg-black text-white"
+              >140 mg / Every 2 weeks</span
+            >
+          </header>
+
+          <div class="mt-4">
+            <h3 class="font-medium">My Injection Zones</h3>
+            <div
+              id="zone-options-repatha"
+              class="grid grid-cols-2 gap-2 text-sm"
+            ></div>
+          </div>
+
+          <div class="mt-4 grid gap-3">
+            <label class="text-sm"
+              >Start date -
+              <input type="date" class="input mt-1" id="repatha-start" />
+            </label>
+            <!-- Body map -->
+            <div
+              class="mt-3 relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto"
+              id="bodymap-repatha"
+            >
+              <img src="body.jpg" alt="Body Map" class="w-full h-auto" />
+              <!-- Arms & Stomach -->
+              <!-- Right Arm -->
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Arm"
+                title="Right Arm"
+                style="top: 18%; left: 30%; width: 10%; height: 11%"
+              ></div>
+              <!-- Left Arm -->
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Arm"
+                title="Left Arm"
+                style="top: 18%; left: 59%; width: 10%; height: 11%"
+              ></div>
+              <!-- Stomach -->
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Stomach"
+                style="top: 32%; left: 40%; width: 20%; height: 8%"
+              ></div>
+              <!-- Right Thigh -->
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Upper Outer"
+                title="Right Thigh - Upper Outer"
+                style="top: 45%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Middle Outer"
+                title="Right Thigh - Middle Outer"
+                style="top: 50%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Lower Outer"
+                title="Right Thigh - Lower Outer"
+                style="top: 55%; left: 36%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Upper Inner"
+                title="Right Thigh - Upper Inner"
+                style="top: 45%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Middle Inner"
+                title="Right Thigh - Middle Inner"
+                style="top: 50%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Right Thigh - Lower Inner"
+                title="Right Thigh - Lower Inner"
+                style="top: 55%; left: 43%; width: 7%; height: 6%"
+              ></div>
+              <!-- Left Thigh -->
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Upper Outer"
+                title="Left Thigh - Upper Outer"
+                style="top: 45%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Middle Outer"
+                title="Left Thigh - Middle Outer"
+                style="top: 50%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Lower Outer"
+                title="Left Thigh - Lower Outer"
+                style="top: 55%; left: 57%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Upper Inner"
+                title="Left Thigh - Upper Inner"
+                style="top: 45%; left: 50%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Middle Inner"
+                title="Left Thigh - Middle Inner"
+                style="top: 50%; left: 50%; width: 7%; height: 6%"
+              ></div>
+              <div
+                class="site-hotspot"
+                data-med="repatha"
+                data-site="Left Thigh - Lower Inner"
+                title="Left Thigh - Lower Inner"
+                style="top: 55%; left: 50%; width: 7%; height: 6%"
+              ></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              Click the injection site before logging.
+            </p>
+            <div class="flex flex-col gap-3 mt-3">
+              <button
+                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-green-600 text-white hover:bg-green-700"
+                data-med="repatha"
+                data-action="logNow"
+              >
+                💉 Log Injection Now
+              </button>
+              <button
+                class="w-full text-lg inline-flex items-center justify-center rounded-xl px-4 py-3 font-medium shadow-sm transition active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
+                data-med="repatha"
+                data-action="ics"
+              >
+                📅 Add to Calendar (.ics)
+              </button>
+            </div>
+            <div class="mt-3">
+              <h3 class="font-medium">History</h3>
+              <ul
+                id="repatha-history"
+                class="mt-3 space-y-4 relative border-l border-slate-200 pl-4 text-sm list-none"
+              ></ul>
+              <!-- Repatha History Actions -->
+              <div class="flex gap-2 mt-3">
+                <!-- Export History -->
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-blue-600 hover:to-blue-700 hover:shadow-md active:scale-95"
+                  data-med="repatha"
+                  data-action="exportHistory"
+                >
+                  ⬇️ Export
+                </button>
+
+                <!-- Restore History -->
+                <label
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-green-600 hover:to-green-700 hover:shadow-md active:scale-95 cursor-pointer"
+                >
+                  📂 Restore
+                  <input
+                    type="file"
+                    accept=".csv"
+                    data-med="repatha"
+                    data-action="importHistory"
+                    class="hidden"
+                  />
+                </label>
+
+                <!-- Clear History -->
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:from-red-600 hover:to-red-700 hover:shadow-md active:scale-95"
+                  data-med="repatha"
+                  data-action="clearHistory"
+                >
+                  🗑️ Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+    <!-- Ambiguity Resolver Modal -->
+    <div id="ambig-modal" class="fixed inset-0 z-[100] hidden">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div
+          class="w-full max-w-md rounded-2xl bg-white shadow-xl ring-1 ring-black/5 p-5 space-y-4"
+        >
+          <h3 class="text-lg font-semibold">
+            Choose the specific injection site
+          </h3>
+          <p id="ambig-desc" class="text-sm text-slate-600">
+            We found an entry using “<span
+              id="ambig-label"
+              class="font-medium"
+            ></span
+            >”. Which exact zone did you use?
+          </p>
+
+          <div class="space-y-2">
+            <label class="text-sm text-slate-700">Map to this zone:</label>
+            <select
+              id="ambig-select"
+              class="w-full rounded-lg border px-3 py-2"
+            ></select>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" id="ambig-apply-all" class="h-4 w-4" />
+              Apply this choice to all entries labeled the same
+            </label>
+            <div class="flex gap-2">
+              <button id="ambig-skip" class="px-3 py-2 rounded-lg border">
+                Skip
+              </button>
+              <button
+                id="ambig-save"
+                class="px-3 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
