@@ -30,7 +30,8 @@ const LEGACY_ZONES = {
   skyrizi: [
     "Right Arm",
     "Left Arm",
-    "Stomach",
+    "Left Stomach",
+    "Right Stomach",
     "Right Thigh - Upper Outer",
     "Right Thigh - Middle Outer",
     "Right Thigh - Lower Outer",
@@ -47,7 +48,8 @@ const LEGACY_ZONES = {
   repatha: [
     "Right Arm",
     "Left Arm",
-    "Stomach",
+    "Left Stomach",
+    "Right Stomach",
     "Right Thigh - Upper Outer",
     "Right Thigh - Middle Outer",
     "Right Thigh - Lower Outer",
@@ -81,10 +83,17 @@ const bodyHotspots = [
     height: "11%",
   },
   {
-    site: "Stomach",
+    site: "Right Stomach",
     top: "32%",
     left: "40%",
-    width: "20%",
+    width: "10%",
+    height: "8%",
+  },
+  {
+    site: "Left Stomach",
+    top: "32%",
+    left: "50%",
+    width: "10%",
     height: "8%",
   },
   {
