@@ -185,6 +185,8 @@ const bodyHotspots = [
 const arr = (v) => (Array.isArray(v) ? v : []);
 const num = (v, f = 0) => (typeof v === "number" && Number.isFinite(v) ? v : f);
 const str = (v, f = "") => (typeof v === "string" ? v : f);
+const obj = (v) => (v && typeof v === "object" ? v : {});
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function normalizeEntry(entry) {
   const ts = Number(entry?.ts);
@@ -205,6 +207,19 @@ function normalizeState(state) {
   inj.history = arr(inj.history).map(normalizeEntry).sort((a, b) => a.ts - b.ts);
   const zones = arr(inj.zones).filter((z) => ALL_ZONES.includes(z));
   inj.zones = zones.length ? zones : [...ALL_ZONES];
+  const positions = obj(inj.tagPositions);
+  const cleanPositions = {};
+  Object.entries(positions).forEach(([site, coords]) => {
+    if (!ALL_ZONES.includes(site)) return;
+    const x = Number(coords?.x);
+    const y = Number(coords?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    cleanPositions[site] = {
+      x: clamp(x, 0, 100),
+      y: clamp(y, 0, 100),
+    };
+  });
+  inj.tagPositions = cleanPositions;
   state.injection = inj;
   state.__v = SCHEMA_VERSION;
   return state;
@@ -665,6 +680,102 @@ function computeUsedZones() {
   return { usedSet, oldestAvailable, fullCycle };
 }
 
+function positionFloatingTag(tagEl, coords) {
+  if (!coords) return false;
+  const x = Number(coords.x);
+  const y = Number(coords.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const clampedX = clamp(x, 0, 100);
+  const clampedY = clamp(y, 0, 100);
+  tagEl.removeAttribute("data-pos");
+  tagEl.dataset.free = "1";
+  tagEl.style.left = `${clampedX}%`;
+  tagEl.style.top = `${clampedY}%`;
+  tagEl.style.transform = "translate(-50%, -50%)";
+  return { x: clampedX, y: clampedY };
+}
+
+function enableTagDragging(tagEl, site) {
+  tagEl.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const container = tagEl.closest("#bodymap");
+    if (!container) return;
+    event.preventDefault();
+    event.stopPropagation();
+    tagEl.setPointerCapture?.(event.pointerId);
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let dragStarted = false;
+    let latestPosition = null;
+    let grabOffsetX = 0;
+    let grabOffsetY = 0;
+    let containerRect = null;
+
+    function beginDrag(e) {
+      dragStarted = true;
+      containerRect = container.getBoundingClientRect();
+      const tagRect = tagEl.getBoundingClientRect();
+      const centerX = tagRect.left + tagRect.width / 2;
+      const centerY = tagRect.top + tagRect.height / 2;
+      grabOffsetX = e.clientX - centerX;
+      grabOffsetY = e.clientY - centerY;
+      container.appendChild(tagEl);
+      positionFloatingTag(tagEl, {
+        x: ((centerX - containerRect.left) / containerRect.width) * 100,
+        y: ((centerY - containerRect.top) / containerRect.height) * 100,
+      });
+      tagEl.classList.add("dragging");
+    }
+
+    function updatePosition(e) {
+      if (!containerRect) return null;
+      const centerX = e.clientX - grabOffsetX;
+      const centerY = e.clientY - grabOffsetY;
+      const xPercent = clamp(
+        ((centerX - containerRect.left) / containerRect.width) * 100,
+        0,
+        100
+      );
+      const yPercent = clamp(
+        ((centerY - containerRect.top) / containerRect.height) * 100,
+        0,
+        100
+      );
+      tagEl.style.left = `${xPercent}%`;
+      tagEl.style.top = `${yPercent}%`;
+      tagEl.style.transform = "translate(-50%, -50%)";
+      return { x: xPercent, y: yPercent };
+    }
+
+    function onMove(e) {
+      const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+      if (!dragStarted && dist > 2) {
+        beginDrag(e);
+      }
+      if (!dragStarted) return;
+      latestPosition = updatePosition(e);
+    }
+
+    function onUp() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      tagEl.releasePointerCapture?.(event.pointerId);
+      tagEl.classList.remove("dragging");
+      if (dragStarted && latestPosition) {
+        if (!state.injection.tagPositions) {
+          state.injection.tagPositions = {};
+        }
+        state.injection.tagPositions[site] = latestPosition;
+        save();
+      }
+    }
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  });
+}
+
 function renderBodymap() {
   const container = document.getElementById("bodymap");
   if (!container) return;
@@ -726,10 +837,21 @@ function renderBodymap() {
       if (ts) {
         const tag = document.createElement("div");
         tag.className = "site-tag";
+        tag.dataset.site = cfg.site;
         tag.textContent = formatShortDate(ts);
-        const pos = chooseTagPosition(hotspot);
-        tag.setAttribute("data-pos", pos);
-        hotspot.appendChild(tag);
+        const stored = state?.injection?.tagPositions?.[cfg.site];
+        if (positionFloatingTag(tag, stored)) {
+          container.appendChild(tag);
+        } else {
+          tag.dataset.free = "0";
+          tag.style.left = "";
+          tag.style.top = "";
+          tag.style.transform = "";
+          const pos = chooseTagPosition(hotspot);
+          tag.setAttribute("data-pos", pos);
+          hotspot.appendChild(tag);
+        }
+        enableTagDragging(tag, cfg.site);
       }
     }
   });

@@ -57,8 +57,16 @@
         border: 2px solid #f4b6ce; /* soft pink border */
         border-radius: 999px;
         white-space: nowrap;
-        pointer-events: none; /* never blocks clicks */
+        pointer-events: auto;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      .site-tag.dragging {
+        cursor: grabbing;
+        opacity: 0.9;
       }
 
       /* small triangular pointer; direction via [data-pos] */
@@ -120,6 +128,10 @@
         transform: translateY(-50%);
         border-width: 6px 6px 6px 0;
         border-color: transparent #f4b6ce transparent transparent;
+      }
+
+      .site-tag[data-free="1"]::after {
+        display: none;
       }
 
       /* optional: a small dot in the center of the used hotspot */
