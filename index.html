@@ -57,69 +57,34 @@
         border: 2px solid #f4b6ce; /* soft pink border */
         border-radius: 999px;
         white-space: nowrap;
-        pointer-events: none; /* never blocks clicks */
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        cursor: grab;
+        user-select: none;
+        pointer-events: auto;
+        touch-action: none;
       }
 
-      /* small triangular pointer; direction via [data-pos] */
+      .site-tag.dragging {
+        cursor: grabbing;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+      }
+
       .site-tag::after {
-        content: "";
+        content: none;
+      }
+
+      .site-connector-layer {
         position: absolute;
-        width: 0;
-        height: 0;
-        border-style: solid;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2;
       }
 
-      /* positions */
-      .site-tag[data-pos="top"] {
-        left: 50%;
-        top: 0;
-        transform: translate(-50%, -8px);
-      }
-      .site-tag[data-pos="bottom"] {
-        left: 50%;
-        top: 100%;
-        transform: translate(-50%, 8px);
-      }
-      .site-tag[data-pos="left"] {
-        left: 0;
-        top: 50%;
-        transform: translate(-8px, -50%);
-      }
-      .site-tag[data-pos="right"] {
-        left: 100%;
-        top: 50%;
-        transform: translate(8px, -50%);
-      }
-
-      /* pointer orientations */
-      .site-tag[data-pos="top"]::after {
-        bottom: -6px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 6px 6px 0 6px;
-        border-color: #f4b6ce transparent transparent transparent;
-      }
-      .site-tag[data-pos="bottom"]::after {
-        top: -6px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 0 6px 6px 6px;
-        border-color: transparent transparent #f4b6ce transparent;
-      }
-      .site-tag[data-pos="left"]::after {
-        right: -6px;
-        top: 50%;
-        transform: translateY(-50%);
-        border-width: 6px 0 6px 6px;
-        border-color: transparent transparent transparent #f4b6ce;
-      }
-      .site-tag[data-pos="right"]::after {
-        left: -6px;
-        top: 50%;
-        transform: translateY(-50%);
-        border-width: 6px 6px 6px 0;
-        border-color: transparent #f4b6ce transparent transparent;
+      .site-connector-line {
+        stroke: #f4b6ce;
+        stroke-width: 2;
+        fill: none;
+        opacity: 0.85;
       }
 
       /* optional: a small dot in the center of the used hotspot */
