@@ -26,6 +26,11 @@ const STORE_KEY = "inj-track";
 // bump version
 const SCHEMA_VERSION = 5; // single-injection schema
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LABEL_POS_KEY = "inj-label-pos-v1";
+const SITE_ARROW_MARKER_ID = "site-connector-arrowhead";
+let labelPositions = loadLabelPositions();
+
 const LEGACY_ZONES = {
   skyrizi: [
     "Right Arm",
@@ -475,6 +480,174 @@ function chooseTagPosition(hotspotEl) {
   return "left";
 }
 
+function loadLabelPositions() {
+  try {
+    const stored = STORAGE.getItem(LABEL_POS_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (err) {
+    console.warn("Failed to read stored label positions", err);
+  }
+  return {};
+}
+
+function persistLabelPositions() {
+  try {
+    STORAGE.setItem(LABEL_POS_KEY, JSON.stringify(labelPositions));
+  } catch (err) {
+    console.warn("Failed to persist label positions", err);
+  }
+}
+
+function getStoredLabelPosition(site, container) {
+  if (!site || !container) return null;
+  const stored = labelPositions?.[site];
+  if (!stored || typeof stored.x !== "number" || typeof stored.y !== "number") {
+    return null;
+  }
+  const width = Math.max(1, container.clientWidth);
+  const height = Math.max(1, container.clientHeight);
+  return { left: stored.x * width, top: stored.y * height };
+}
+
+function setStoredLabelPosition(site, left, top, container) {
+  if (!site || !container) return;
+  const width = Math.max(1, container.clientWidth);
+  const height = Math.max(1, container.clientHeight);
+  labelPositions[site] = {
+    x: left / width,
+    y: top / height,
+  };
+  persistLabelPositions();
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function placeTagWithinBounds(tag, desiredLeft, desiredTop, container) {
+  const maxLeft = Math.max(0, container.clientWidth - tag.offsetWidth);
+  const maxTop = Math.max(0, container.clientHeight - tag.offsetHeight);
+  const left = clamp(desiredLeft, 0, maxLeft);
+  const top = clamp(desiredTop, 0, maxTop);
+  tag.style.left = left + "px";
+  tag.style.top = top + "px";
+  return { left, top };
+}
+
+function defaultLabelCoords(hotspotEl, container, tag) {
+  const cRect = container.getBoundingClientRect();
+  const hRect = hotspotEl.getBoundingClientRect();
+  const tagWidth = tag.offsetWidth;
+  const tagHeight = tag.offsetHeight;
+  const centerX = hRect.left - cRect.left + hRect.width / 2;
+  const centerY = hRect.top - cRect.top + hRect.height / 2;
+  const offset = 12;
+  const pos = chooseTagPosition(hotspotEl);
+  let left = centerX - tagWidth / 2;
+  let top = centerY - tagHeight / 2;
+  if (pos === "top") {
+    top = hRect.top - cRect.top - tagHeight - offset;
+  } else if (pos === "bottom") {
+    top = hRect.bottom - cRect.top + offset;
+  } else if (pos === "left") {
+    left = hRect.left - cRect.left - tagWidth - offset;
+  } else if (pos === "right") {
+    left = hRect.right - cRect.left + offset;
+  }
+  return { left, top };
+}
+
+function createConnectorLayer(container) {
+  const width = Math.max(1, container.clientWidth);
+  const height = Math.max(1, container.clientHeight);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.classList.add("site-connector-layer");
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+
+  const defs = document.createElementNS(SVG_NS, "defs");
+  const marker = document.createElementNS(SVG_NS, "marker");
+  marker.setAttribute("id", SITE_ARROW_MARKER_ID);
+  marker.setAttribute("markerWidth", "6");
+  marker.setAttribute("markerHeight", "6");
+  marker.setAttribute("refX", "5.5");
+  marker.setAttribute("refY", "3");
+  marker.setAttribute("orient", "auto");
+  const markerPath = document.createElementNS(SVG_NS, "path");
+  markerPath.setAttribute("d", "M0,0 L6,3 L0,6 Z");
+  markerPath.setAttribute("fill", "#f4b6ce");
+  marker.appendChild(markerPath);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+  container.appendChild(svg);
+  return svg;
+}
+
+function updateConnectorLine(line, hotspot, container, tag) {
+  if (!line || !hotspot || !container || !tag) return;
+  const cRect = container.getBoundingClientRect();
+  const hRect = hotspot.getBoundingClientRect();
+  const tagRect = tag.getBoundingClientRect();
+  const startX = hRect.left - cRect.left + hRect.width / 2;
+  const startY = hRect.top - cRect.top + hRect.height / 2;
+  const endX = tagRect.left - cRect.left + tagRect.width / 2;
+  const endY = tagRect.top - cRect.top + tagRect.height / 2;
+  line.setAttribute("x1", startX);
+  line.setAttribute("y1", startY);
+  line.setAttribute("x2", endX);
+  line.setAttribute("y2", endY);
+}
+
+function positionTagAndConnector(tag, line, container, hotspot, site) {
+  const stored = getStoredLabelPosition(site, container);
+  const coords = stored || defaultLabelCoords(hotspot, container, tag);
+  placeTagWithinBounds(tag, coords.left, coords.top, container);
+  tag.style.visibility = "";
+  updateConnectorLine(line, hotspot, container, tag);
+}
+
+function enableTagDragging(tag, line, container, hotspot, site) {
+  let pointerId = null;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  tag.addEventListener("pointerdown", (ev) => {
+    ev.preventDefault();
+    pointerId = ev.pointerId;
+    tag.setPointerCapture(pointerId);
+    tag.classList.add("dragging");
+    const rect = tag.getBoundingClientRect();
+    offsetX = ev.clientX - rect.left;
+    offsetY = ev.clientY - rect.top;
+  });
+
+  tag.addEventListener("pointermove", (ev) => {
+    if (pointerId !== ev.pointerId) return;
+    const containerRect = container.getBoundingClientRect();
+    const desiredLeft = ev.clientX - containerRect.left - offsetX;
+    const desiredTop = ev.clientY - containerRect.top - offsetY;
+    const placed = placeTagWithinBounds(tag, desiredLeft, desiredTop, container);
+    updateConnectorLine(line, hotspot, container, tag);
+    setStoredLabelPosition(site, placed.left, placed.top, container);
+  });
+
+  const endDrag = (ev) => {
+    if (pointerId === null || ev.pointerId !== pointerId) return;
+    tag.releasePointerCapture(pointerId);
+    pointerId = null;
+    tag.classList.remove("dragging");
+  };
+
+  tag.addEventListener("pointerup", endDrag);
+  tag.addEventListener("pointercancel", endDrag);
+}
+
 function ensureOutlineFor(hotspotEl) {
   const site = hotspotEl.dataset.site;
   const container = hotspotEl.closest("#bodymap");
@@ -670,7 +843,9 @@ function renderBodymap() {
   if (!container) return;
 
   container
-    .querySelectorAll(".site-hotspot, .site-outline, .site-tag, .site-callout, .site-dot")
+    .querySelectorAll(
+      ".site-hotspot, .site-outline, .site-tag, .site-callout, .site-dot, .site-connector-layer"
+    )
     .forEach((el) => el.remove());
 
   const enabled = state.injection.zones || [];
@@ -679,6 +854,8 @@ function renderBodymap() {
   if (selectedSite && !enabled.includes(selectedSite)) {
     selectedSite = null;
   }
+
+  const connectorLayer = createConnectorLayer(container);
 
   bodyHotspots.forEach((cfg) => {
     const hotspot = document.createElement("div");
@@ -727,9 +904,17 @@ function renderBodymap() {
         const tag = document.createElement("div");
         tag.className = "site-tag";
         tag.textContent = formatShortDate(ts);
-        const pos = chooseTagPosition(hotspot);
-        tag.setAttribute("data-pos", pos);
-        hotspot.appendChild(tag);
+        tag.style.visibility = "hidden";
+        tag.dataset.site = cfg.site;
+        container.appendChild(tag);
+
+        const line = document.createElementNS(SVG_NS, "line");
+        line.classList.add("site-connector-line");
+        line.setAttribute("marker-end", `url(#${SITE_ARROW_MARKER_ID})`);
+        connectorLayer.appendChild(line);
+
+        positionTagAndConnector(tag, line, container, hotspot, cfg.site);
+        enableTagDragging(tag, line, container, hotspot, cfg.site);
       }
     }
   });
